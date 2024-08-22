@@ -11,6 +11,11 @@
 		41439AA22C743A3E00EFCC92 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439AA12C743A3E00EFCC92 /* ContentView.swift */; };
 		41439AA42C743A4000EFCC92 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 41439AA32C743A4000EFCC92 /* Assets.xcassets */; };
 		41439AA72C743A4000EFCC92 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 41439AA62C743A4000EFCC92 /* Preview Assets.xcassets */; };
+		41439AAE2C743AC000EFCC92 /* EmojiArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439AAD2C743AC000EFCC92 /* EmojiArt.swift */; };
+		41439AB02C743BA400EFCC92 /* EmojiArtDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439AAF2C743BA400EFCC92 /* EmojiArtDocument.swift */; };
+		41439AB22C743CDF00EFCC92 /* EmojiArtDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439AB12C743CDF00EFCC92 /* EmojiArtDocumentView.swift */; };
+		41439AB42C743FCB00EFCC92 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439AB32C743FCB00EFCC92 /* Extensions.swift */; };
+		41439AB82C7457A900EFCC92 /* Sturldata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439AB72C7457A900EFCC92 /* Sturldata.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +24,11 @@
 		41439AA12C743A3E00EFCC92 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		41439AA32C743A4000EFCC92 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		41439AA62C743A4000EFCC92 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		41439AAD2C743AC000EFCC92 /* EmojiArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiArt.swift; sourceTree = "<group>"; };
+		41439AAF2C743BA400EFCC92 /* EmojiArtDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiArtDocument.swift; sourceTree = "<group>"; };
+		41439AB12C743CDF00EFCC92 /* EmojiArtDocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiArtDocumentView.swift; sourceTree = "<group>"; };
+		41439AB32C743FCB00EFCC92 /* Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		41439AB72C7457A900EFCC92 /* Sturldata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sturldata.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,6 +45,7 @@
 		41439A932C743A3E00EFCC92 = {
 			isa = PBXGroup;
 			children = (
+				41439AB72C7457A900EFCC92 /* Sturldata.swift */,
 				41439A9E2C743A3E00EFCC92 /* Emoji Art */,
 				41439A9D2C743A3E00EFCC92 /* Products */,
 			);
@@ -53,6 +64,10 @@
 			children = (
 				41439A9F2C743A3E00EFCC92 /* Emoji_ArtApp.swift */,
 				41439AA12C743A3E00EFCC92 /* ContentView.swift */,
+				41439AAD2C743AC000EFCC92 /* EmojiArt.swift */,
+				41439AAF2C743BA400EFCC92 /* EmojiArtDocument.swift */,
+				41439AB32C743FCB00EFCC92 /* Extensions.swift */,
+				41439AB12C743CDF00EFCC92 /* EmojiArtDocumentView.swift */,
 				41439AA32C743A4000EFCC92 /* Assets.xcassets */,
 				41439AA52C743A4000EFCC92 /* Preview Content */,
 			);
@@ -137,8 +152,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				41439AB82C7457A900EFCC92 /* Sturldata.swift in Sources */,
+				41439AB22C743CDF00EFCC92 /* EmojiArtDocumentView.swift in Sources */,
+				41439AB42C743FCB00EFCC92 /* Extensions.swift in Sources */,
+				41439AAE2C743AC000EFCC92 /* EmojiArt.swift in Sources */,
 				41439AA22C743A3E00EFCC92 /* ContentView.swift in Sources */,
 				41439AA02C743A3E00EFCC92 /* Emoji_ArtApp.swift in Sources */,
+				41439AB02C743BA400EFCC92 /* EmojiArtDocument.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
