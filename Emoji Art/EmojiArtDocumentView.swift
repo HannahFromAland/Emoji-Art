@@ -46,15 +46,29 @@ struct EmojiArtDocumentView: View {
     @State private var pan: CGOffset = .zero
     
     @GestureState private var gestureZoom: CGFloat = 1
+    @GestureState private var gestureZoomEmoji: CGFloat = 1
     @GestureState private var gesturePan: CGOffset = .zero
     
     private var zoomGesture: some Gesture {
-        MagnificationGesture()
+        MagnifyGesture(minimumScaleDelta: 0.1)
             .updating($gestureZoom) { inMotionPinchScale, gestureZoom, _ in
-                gestureZoom = inMotionPinchScale
+                if selection.isEmpty {
+                    gestureZoom = inMotionPinchScale.magnification
+                }
+            }
+            .updating($gestureZoomEmoji) { value, gestureZoomEmoji, _ in
+                if !selection.isEmpty {
+                   gestureZoomEmoji = value.magnification
+               }
             }
             .onEnded { endingPinchScale in
-                zoom *= endingPinchScale
+                if selection.isEmpty {
+                    zoom *= endingPinchScale.magnification
+                } else {
+                    for emoji in document.emojis where selection.contains(emoji.id) {
+                        document.resize(emoji, by: endingPinchScale.magnification)
+                    }
+                }
             }
     }
     
@@ -71,9 +85,9 @@ struct EmojiArtDocumentView: View {
     @State private var zoomEmoji: CGFloat = 1
     @State private var panEmoji: CGOffset = .zero
     
-    @GestureState private var gestureZoomEmoji: CGFloat = 1
-    @GestureState private var gesturePanEmoji: CGOffset = .zero
-
+    
+    // can also use border to identify selected emoji as follows:
+    // .shadow(color: .gray, radius: selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
     @ViewBuilder
     private func documentContents(in geometry: GeometryProxy) -> some View {
         AsyncImage(url: document.background)
@@ -84,13 +98,12 @@ struct EmojiArtDocumentView: View {
         ForEach(document.emojis) { emoji in
             Text(emoji.string)
                 .font(emoji.font)
-            //                .shadow(color: .gray, radius:  !isDragging && selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
                 .border(selection.contains(emoji.id) ? Color.purple: Color.clear, width: 4)
-                .offset(selection.contains(emoji.id) ? panEmoji + gesturePan : .zero)
                 .onTapGesture {
                     toggleSelection(emoji)
                 }
-                .gesture(selection.contains(emoji.id) ? dragGesture(emoji) : nil)
+                .scaleEffect(selection.contains(emoji.id) ? CGFloat(1) * gestureZoomEmoji :  CGFloat(1))
+                .gesture(selection.contains(emoji.id) ? dragGesture(emoji): nil)
                 .position(emoji.position.in(geometry))
         }
     }
@@ -98,6 +111,7 @@ struct EmojiArtDocumentView: View {
     private func dragGesture(_ emoji: Emoji) -> some Gesture {
         DragGesture()
             .onChanged { value in
+                // onChanged will update the @State as it changes, while updating shows transient UI state during the gest
                 for emoji in document.emojis where selection.contains(emoji.id) {
                     document.move(emoji, by: value.translation)
                 }
@@ -106,10 +120,9 @@ struct EmojiArtDocumentView: View {
                 for emoji in document.emojis where selection.contains(emoji.id) {
                     document.move(emoji, by: value.translation)
                 }
-                panEmoji += value.translation
             }
     }
-    
+
     private func toggleSelection(_ emoji: Emoji) {
         if selection.contains(emoji.id) {
             selection.remove(emoji.id)

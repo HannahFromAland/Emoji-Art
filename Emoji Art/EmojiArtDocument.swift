@@ -50,7 +50,8 @@ class EmojiArtDocument: ObservableObject {
     }
     
     func resize(_ emoji: Emoji, by scale: CGFloat) {
-        emojiArt[emoji].size = Int(CGFloat(emojiArt[emoji].size) * scale)
+        let currentSize = CGFloat(emojiArt[emoji].size)
+        emojiArt[emoji].size = Int(currentSize * scale)
     }
     
     func resize(emojiId: Emoji.ID, by scale: CGFloat) {
