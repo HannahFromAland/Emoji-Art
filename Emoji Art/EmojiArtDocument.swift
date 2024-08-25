@@ -12,8 +12,8 @@ class EmojiArtDocument: ObservableObject {
     @Published private var emojiArt = EmojiArt()
     
     init() {
-        emojiArt.addEmoji("🤯", at: .init(x: -200, y: -150), size: 200)
-        emojiArt.addEmoji("😈", at: .init(x: 200, y: 150), size: 80)
+//        emojiArt.addEmoji("🤯", at: .init(x: -200, y: -150), size: 200)
+//        emojiArt.addEmoji("😈", at: .init(x: 200, y: 150), size: 80)
     }
     
     var emojis: [Emoji] {
@@ -32,6 +32,10 @@ class EmojiArtDocument: ObservableObject {
     
     func addEmoji(_ emoji: String, at position: Emoji.Position, size: CGFloat) {
         emojiArt.addEmoji(emoji, at: position, size: Int(size))
+    }
+    
+    func removeEmoji(_ emoji: Emoji) {
+        emojiArt.removeEmoji(emoji)
     }
     
     func move(_ emoji: Emoji, by offset: CGOffset) {

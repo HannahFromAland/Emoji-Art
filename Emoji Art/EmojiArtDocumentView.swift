@@ -102,22 +102,47 @@ struct EmojiArtDocumentView: View {
                 .onTapGesture {
                     toggleSelection(emoji)
                 }
+                .overlay(selection.contains(emoji.id) ? deleteButton(emoji) : nil)
                 .scaleEffect(selection.contains(emoji.id) ? CGFloat(1) * gestureZoomEmoji :  CGFloat(1))
-                .gesture(selection.contains(emoji.id) ? dragGesture(emoji): nil)
+                .gesture(dragGesture(emoji))
                 .position(emoji.position.in(geometry))
+                .zIndex(2.0)
         }
+    }
+    
+    private func deleteButton(_ emoji: Emoji) -> some View {
+        GeometryReader { geometry in
+            Image(systemName: "minus.circle")
+                .foregroundColor(.orange)
+                .font(.system(size: 30))
+                .bold()
+                .position(CGPoint(x: geometry.frame(in: .local).width + 8, y:geometry.frame(in: .local).height + 8))
+                .onTapGesture {
+                    document.removeEmoji(emoji)
+                }
+        }
+
     }
     
     private func dragGesture(_ emoji: Emoji) -> some Gesture {
         DragGesture()
             .onChanged { value in
                 // onChanged will update the @State as it changes, while updating shows transient UI state during the gest
-                for emoji in document.emojis where selection.contains(emoji.id) {
+                if selection.contains(emoji.id) {
+                    for emoji in document.emojis where selection.contains(emoji.id) {
+                        document.move(emoji, by: value.translation)
+                    }
+                    
+                } else{
                     document.move(emoji, by: value.translation)
                 }
             }
             .onEnded { value in
-                for emoji in document.emojis where selection.contains(emoji.id) {
+                if selection.contains(emoji.id) {
+                    for emoji in document.emojis where selection.contains(emoji.id) {
+                        document.move(emoji, by: value.translation)
+                    }
+                } else {
                     document.move(emoji, by: value.translation)
                 }
             }
