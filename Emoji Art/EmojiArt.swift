@@ -23,6 +23,33 @@ struct EmojiArt {
         ))
     }
     
+    private func index(of emojiID: Emoji.ID) -> Int? {
+        emojis.firstIndex(where: {$0.id == emojiID})
+    }
+    
+    subscript(_ emojiId: Emoji.ID) -> Emoji? {
+        if let index = index(of: emojiId) {
+            return emojis[index]
+        } else {
+            return nil
+        }
+    }
+    
+    subscript(_ emoji: Emoji) -> Emoji {
+        get {
+            if let index = index(of: emoji.id) {
+                return emojis[index]
+            } else {
+                return emoji // should be substitute with error handling
+            }
+        }
+        set {
+            if let index = index(of: emoji.id) {
+                emojis[index] = newValue
+            }
+        }
+    }
+
     struct Emoji: Identifiable {
         let string: String
         var position: Position

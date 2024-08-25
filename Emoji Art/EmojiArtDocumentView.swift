@@ -18,7 +18,7 @@ struct EmojiArtDocumentView: View {
     var body: some View {
         VStack(spacing: 0) {
             documentBody
-            ScrollingEmojis(emojis)
+            PaletteChooser()
                 .font(.system(size: paletteEmojiSize))
                 .padding(.horizontal)
                 .scrollIndicators(.hidden)
@@ -29,20 +29,93 @@ struct EmojiArtDocumentView: View {
         GeometryReader{ geometry in
             ZStack {
                 Color.white
-                AsyncImage(url: document.background)
-                 .position(Emoji.Position.zero.in(geometry))
-                 .scaledToFill()
-                ForEach(document.emojis) { emoji in
-                    Text(emoji.string)
-                        .font(emoji.font)
-                        .position(emoji.position.in(geometry))
-                }
+                documentContents(in: geometry)
+                    .scaleEffect(zoom * gestureZoom)
+                    .offset(pan + gesturePan)
             }
             .dropDestination(for: Sturldata.self) {sturldata, location in
                 return drop(sturldata, at: location, in: geometry)
             }
+            .gesture(panGesture.simultaneously(with: zoomGesture))
         }
-
+    }
+    
+    @State private var selection = Set<Emoji.ID>()
+    
+    @State private var zoom: CGFloat = 1
+    @State private var pan: CGOffset = .zero
+    
+    @GestureState private var gestureZoom: CGFloat = 1
+    @GestureState private var gesturePan: CGOffset = .zero
+    
+    private var zoomGesture: some Gesture {
+        MagnificationGesture()
+            .updating($gestureZoom) { inMotionPinchScale, gestureZoom, _ in
+                gestureZoom = inMotionPinchScale
+            }
+            .onEnded { endingPinchScale in
+                zoom *= endingPinchScale
+            }
+    }
+    
+    private var panGesture: some Gesture {
+        DragGesture()
+            .updating($gesturePan) { value, gesturePan, _ in
+                gesturePan  = value.translation
+            }
+            .onEnded { value in
+                pan += value.translation
+            }
+    }
+    
+    @State private var zoomEmoji: CGFloat = 1
+    @State private var panEmoji: CGOffset = .zero
+    
+    @GestureState private var gestureZoomEmoji: CGFloat = 1
+    @GestureState private var gesturePanEmoji: CGOffset = .zero
+    
+    private func dragGesture(_ emoji: Emoji) -> some Gesture {
+        DragGesture()
+            .updating($gesturePanEmoji) { value, gesturePanEmoji, _ in
+                for emoji in document.emojis where selection.contains(emoji.id) {
+                    document.move(emoji, by: value.translation)
+                }
+            }
+            .onEnded { value in
+                for emoji in document.emojis where selection.contains(emoji.id) {
+                    document.move(emoji, by: value.translation)
+                }
+                panEmoji += value.translation
+            }
+    }
+    
+    @ViewBuilder
+    private func documentContents(in geometry: GeometryProxy) -> some View {
+        AsyncImage(url: document.background)
+         .position(Emoji.Position.zero.in(geometry))
+         .onTapGesture {
+             selection = Set<Emoji.ID>()
+         }
+        ForEach(document.emojis) { emoji in
+            Text(emoji.string)
+                .font(emoji.font)
+//                .shadow(color: .gray, radius:  !isDragging && selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
+                .border(selection.contains(emoji.id) ? Color.purple: Color.clear, width: 4)
+                .position(emoji.position.in(geometry))
+                .onTapGesture {
+                    toggleSelection(emoji)
+                }
+                .gesture(selection.contains(emoji.id) ? dragGesture(emoji) : nil)
+                .position(emoji.position.in(geometry))
+        }
+    }
+    
+    private func toggleSelection(_ emoji: Emoji) {
+        if selection.contains(emoji.id) {
+            selection.remove(emoji.id)
+        } else {
+            selection.insert(emoji.id)
+        }
     }
     
     private func drop(_ sturldata: [Sturldata], at location: CGPoint, in geometry: GeometryProxy) -> Bool {
@@ -55,7 +128,7 @@ struct EmojiArtDocumentView: View {
                 document.addEmoji(
                     emoji,
                     at: emojiPosition(at: location, in: geometry),
-                    size: paletteEmojiSize
+                    size: paletteEmojiSize / zoom
                 )
                 return true
             default:
@@ -68,31 +141,13 @@ struct EmojiArtDocumentView: View {
     private func emojiPosition(at location: CGPoint, in geometry: GeometryProxy) -> Emoji.Position {
         let centerX = geometry.frame(in: .local).midX
         let centerY = geometry.frame(in: .local).midY
-        let x = Int(location.x - centerX)
-        let y = Int(-(location.y - centerY))
+        let x = Int((location.x - centerX - pan.width) / zoom)
+        let y = Int((-(location.y - centerY - pan.height) / zoom))
         return Emoji.Position(x: x, y: y)
     }
 }
 
-struct ScrollingEmojis: View {
-    let emojis: [String]
-    
-    init(_ emojis: String) {
-        self.emojis = emojis.uniqued.map(String.init)
-    }
-    
-    
-    var body: some View {
-        ScrollView(.horizontal) {
-            HStack {
-                ForEach(emojis, id: \.self) { emoji in
-                    Text(emoji)
-                        .draggable(emoji)
-                }
-            }
-        }
-    }
-}
 #Preview {
     EmojiArtDocumentView(document: EmojiArtDocument())
+        .environmentObject(PaletteStore(named: "Preview"))
 }
