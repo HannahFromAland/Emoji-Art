@@ -73,10 +73,31 @@ struct EmojiArtDocumentView: View {
     
     @GestureState private var gestureZoomEmoji: CGFloat = 1
     @GestureState private var gesturePanEmoji: CGOffset = .zero
+
+    @ViewBuilder
+    private func documentContents(in geometry: GeometryProxy) -> some View {
+        AsyncImage(url: document.background)
+            .position(Emoji.Position.zero.in(geometry))
+            .onTapGesture {
+                selection = Set<Emoji.ID>()
+            }
+        ForEach(document.emojis) { emoji in
+            Text(emoji.string)
+                .font(emoji.font)
+            //                .shadow(color: .gray, radius:  !isDragging && selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
+                .border(selection.contains(emoji.id) ? Color.purple: Color.clear, width: 4)
+                .offset(selection.contains(emoji.id) ? panEmoji + gesturePan : .zero)
+                .onTapGesture {
+                    toggleSelection(emoji)
+                }
+                .gesture(selection.contains(emoji.id) ? dragGesture(emoji) : nil)
+                .position(emoji.position.in(geometry))
+        }
+    }
     
     private func dragGesture(_ emoji: Emoji) -> some Gesture {
         DragGesture()
-            .updating($gesturePanEmoji) { value, gesturePanEmoji, _ in
+            .onChanged { value in
                 for emoji in document.emojis where selection.contains(emoji.id) {
                     document.move(emoji, by: value.translation)
                 }
@@ -87,27 +108,6 @@ struct EmojiArtDocumentView: View {
                 }
                 panEmoji += value.translation
             }
-    }
-    
-    @ViewBuilder
-    private func documentContents(in geometry: GeometryProxy) -> some View {
-        AsyncImage(url: document.background)
-         .position(Emoji.Position.zero.in(geometry))
-         .onTapGesture {
-             selection = Set<Emoji.ID>()
-         }
-        ForEach(document.emojis) { emoji in
-            Text(emoji.string)
-                .font(emoji.font)
-//                .shadow(color: .gray, radius:  !isDragging && selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
-                .border(selection.contains(emoji.id) ? Color.purple: Color.clear, width: 4)
-                .position(emoji.position.in(geometry))
-                .onTapGesture {
-                    toggleSelection(emoji)
-                }
-                .gesture(selection.contains(emoji.id) ? dragGesture(emoji) : nil)
-                .position(emoji.position.in(geometry))
-        }
     }
     
     private func toggleSelection(_ emoji: Emoji) {
