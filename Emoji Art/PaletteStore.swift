@@ -7,25 +7,63 @@
 
 import SwiftUI
 
-class PaletteStore: ObservableObject {
-    let name: String
-    @Published var palettes: [Palette] {
-        didSet {
-            if palettes.isEmpty, !oldValue.isEmpty {
-                palettes = oldValue
-            }
+extension UserDefaults {
+    func palettes(forKey key: String) -> [Palette] {
+        if let jsonData = data(forKey: key),
+           let decodedPalettes = try? JSONDecoder().decode([Palette].self, from: jsonData) {
+            return decodedPalettes
+        } else {
+            return []
         }
     }
+    func set(_ palettes: [Palette], forKey key: String) {
+        let data = try? JSONEncoder().encode(palettes)
+        set(data, forKey: key)
+    }
+}
+
+extension PaletteStore: Hashable {
+    static func == (lhs: PaletteStore, rhs: PaletteStore) -> Bool {
+        lhs.name == rhs.name
+    }
     
-    init(named name: String) {
-        self.name = name
-        palettes = Palette.builtins
-        if palettes.isEmpty {
-            palettes = [Palette(name: "Warning", emojis: "⚠️")]
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+    }
+}
+
+class PaletteStore: ObservableObject, Identifiable {
+    let name: String
+    
+    var id: String { name }
+    
+    private var userDefaultsKey: String { "PaletteStore:" + name }
+    
+    var palettes: [Palette] {
+        get {
+            UserDefaults.standard.palettes(forKey: userDefaultsKey)
+        }
+        set {
+            if !newValue.isEmpty {
+                // avoid empty palette
+                UserDefaults.standard.set(newValue, forKey: userDefaultsKey)
+                objectWillChange.send() // substitution to remove @Published
+            }
+
         }
     }
     
     @Published private var _cursorIndex = 0
+    
+    init(named name: String) {
+        self.name = name
+        if palettes.isEmpty {
+            palettes = Palette.builtins
+            if palettes.isEmpty {
+                palettes = [Palette(name: "Warning", emojis: "⚠️")]
+            }
+        }
+    }
     
     var cursorIndex: Int {
         get { boundsCheckedPaletteIndex(_cursorIndex) }

@@ -90,7 +90,17 @@ struct EmojiArtDocumentView: View {
     // .shadow(color: .gray, radius: selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
     @ViewBuilder
     private func documentContents(in geometry: GeometryProxy) -> some View {
-        AsyncImage(url: document.background)
+        AsyncImage(url: document.background) { phase in
+            if let image = phase.image {
+                image
+            } else if let url = document.background {
+                if phase.error != nil {
+                    Text("Error fetching \(url) : \(String(describing: phase.error))")
+                } else {
+                    ProgressView()
+                }
+            }
+        }
             .position(Emoji.Position.zero.in(geometry))
             .onTapGesture {
                 selection = Set<Emoji.ID>()
