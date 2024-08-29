@@ -34,6 +34,10 @@ struct EmojiArt: Codable {
         ))
     }
     
+    mutating func removeAll() {
+        emojis = []
+    }
+    
     mutating func removeEmoji(_ emoji: Emoji) {
         if let index = index(of: emoji.id) {
             emojis.remove(at: index)

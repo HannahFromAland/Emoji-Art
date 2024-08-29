@@ -29,17 +29,60 @@ struct EmojiArtDocumentView: View {
         GeometryReader{ geometry in
             ZStack {
                 Color.white
+                if document.background.isFetching {
+                    ProgressView()
+                        .tint(.blue)
+                        .position(Emoji.Position.zero.in(geometry))
+                }
                 documentContents(in: geometry)
                     .scaleEffect(zoom * gestureZoom)
                     .offset(pan + gesturePan)
             }
+            .gesture(panGesture.simultaneously(with: zoomGesture))
             .dropDestination(for: Sturldata.self) {sturldata, location in
                 return drop(sturldata, at: location, in: geometry)
             }
-            .gesture(panGesture.simultaneously(with: zoomGesture))
+            .onChange(of: document.background.failureReason) {
+                showBackgroundFailureAlert = (document.background.failureReason != nil)
+            }
+            .onChange(of: document.background.uiImage) {
+                document.removeAll()
+                zoomToFit(document.background.uiImage?.size, in: geometry)
+            }
+            .alert(
+                "Set Background",
+                isPresented: $showBackgroundFailureAlert,
+                presenting: document.background.failureReason,
+                actions: { reason in
+                    Button("OK", role: .cancel) { }
+                },
+                message: { reason in
+                    Text(reason)
+                }
+            )
         }
     }
     
+    private func zoomToFit(_ size: CGSize?, in geometry: GeometryProxy) {
+        if let size {
+            withAnimation {
+                let zoomRect = CGRect(center: .zero, size: size)
+                if zoomRect.width > 0, zoomRect.height > 0, geometry.size.width > 0, geometry.size.height > 0 {
+                    let heightZoom = geometry.size.height / zoomRect.size.height
+                    let widthZoom = geometry.size.width / zoomRect.size.width
+//                    print("heightzoom \(heightZoom), widthzoom \(widthZoom)")
+                    zoom = min(heightZoom, widthZoom)
+                    pan = CGOffset(
+                        width: -zoomRect.midX * zoom,
+                        height: -zoomRect.midY * zoom
+                    )
+            }
+
+            }
+        }
+    }
+    
+    @State private var showBackgroundFailureAlert = false
     @State private var selection = Set<Emoji.ID>()
     
     @State private var zoom: CGFloat = 1
@@ -90,21 +133,13 @@ struct EmojiArtDocumentView: View {
     // .shadow(color: .gray, radius: selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
     @ViewBuilder
     private func documentContents(in geometry: GeometryProxy) -> some View {
-        AsyncImage(url: document.background) { phase in
-            if let image = phase.image {
-                image
-            } else if let url = document.background {
-                if phase.error != nil {
-                    Text("Error fetching \(url) : \(String(describing: phase.error))")
-                } else {
-                    ProgressView()
+        if let uiImage = document.background.uiImage {
+            Image(uiImage: uiImage)
+                .position(Emoji.Position.zero.in(geometry))
+                .onTapGesture {
+                    selection = Set<Emoji.ID>()
                 }
-            }
         }
-            .position(Emoji.Position.zero.in(geometry))
-            .onTapGesture {
-                selection = Set<Emoji.ID>()
-            }
         ForEach(document.emojis) { emoji in
             Text(emoji.string)
                 .font(emoji.font)
@@ -185,6 +220,7 @@ struct EmojiArtDocumentView: View {
         }
         return false
     }
+    
     
     private func emojiPosition(at location: CGPoint, in geometry: GeometryProxy) -> Emoji.Position {
         let centerX = geometry.frame(in: .local).midX
