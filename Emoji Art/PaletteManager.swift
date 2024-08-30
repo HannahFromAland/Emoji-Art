@@ -15,7 +15,7 @@ struct PaletteManager: View {
     var body: some View {
         NavigationSplitView {
             List(stores, selection: $selectedStore) { store in
-                Text(store.name) // BAD!!!!
+                PaletteStoreView(store: store)
                     .tag(store)
             }
         } content: {
@@ -25,6 +25,14 @@ struct PaletteManager: View {
         } detail: {
             
         }
+    }
+}
+
+struct PaletteStoreView: View {
+    @ObservedObject var store: PaletteStore
+    
+    var body: some View {
+        Text(store.name)
     }
 }
 
