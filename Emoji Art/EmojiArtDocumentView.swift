@@ -8,12 +8,17 @@
 import SwiftUI
 
 struct EmojiArtDocumentView: View {
+    @Environment(\.undoManager) var undoManager
+    
+    @StateObject var paletteStore = PaletteStore(named: "Shared")
+    
     typealias Emoji = EmojiArt.Emoji
     @ObservedObject var document: EmojiArtDocument
     
     private let emojis = "🥲🥪🍰🥞🧇🍕🧇🍍🍑🍓🍇🍌🍋‍🟩🍋🤍🍊🍐🍎🩷"
     
-    private let paletteEmojiSize: CGFloat = 40
+    @ScaledMetric private var paletteEmojiSize: CGFloat = 40
+
     
     var body: some View {
         VStack(spacing: 0) {
@@ -23,6 +28,7 @@ struct EmojiArtDocumentView: View {
                 .padding(.horizontal)
                 .scrollIndicators(.hidden)
         }
+        .environmentObject(paletteStore)
     }
     
     private var documentBody: some View {
@@ -46,7 +52,7 @@ struct EmojiArtDocumentView: View {
                 showBackgroundFailureAlert = (document.background.failureReason != nil)
             }
             .onChange(of: document.background.uiImage) {
-                document.removeAll()
+//                document.removeAll(undowith: undoManager)
                 zoomToFit(document.background.uiImage?.size, in: geometry)
             }
             .alert(
@@ -109,7 +115,7 @@ struct EmojiArtDocumentView: View {
                     zoom *= endingPinchScale.magnification
                 } else {
                     for emoji in document.emojis where selection.contains(emoji.id) {
-                        document.resize(emoji, by: endingPinchScale.magnification)
+                        document.resize(emoji, by: endingPinchScale.magnification, undowith: undoManager)
                     }
                 }
             }
@@ -125,12 +131,11 @@ struct EmojiArtDocumentView: View {
             }
     }
     
-    @State private var zoomEmoji: CGFloat = 1
     @State private var panEmoji: CGOffset = .zero
     
     
     // can also use border to identify selected emoji as follows:
-    // .shadow(color: .gray, radius: selection.contains(emoji.id) ? 25 : 0, x: 1, y: 1)
+    // .border(selection.contains(emoji.id) ? Color.purple: Color.clear, width: 4)
     @ViewBuilder
     private func documentContents(in geometry: GeometryProxy) -> some View {
         if let uiImage = document.background.uiImage {
@@ -141,29 +146,40 @@ struct EmojiArtDocumentView: View {
                 }
         }
         ForEach(document.emojis) { emoji in
-            Text(emoji.string)
-                .font(emoji.font)
-                .border(selection.contains(emoji.id) ? Color.purple: Color.clear, width: 4)
-                .onTapGesture {
-                    toggleSelection(emoji)
-                }
-                .overlay(selection.contains(emoji.id) ? deleteButton(emoji) : nil)
-                .scaleEffect(selection.contains(emoji.id) ? CGFloat(1) * gestureZoomEmoji :  CGFloat(1))
-                .gesture(dragGesture(emoji))
-                .position(emoji.position.in(geometry))
-                .zIndex(2.0)
+            emojiView(emoji, geometry: geometry)
         }
+    }
+    
+    private func emojiView(_ emoji: Emoji, geometry: GeometryProxy) -> some View {
+        Text(emoji.string)
+            .font(emoji.font)
+            .shadow(color: selection.contains(emoji.id) ? .gray : .clear, radius: 10, x: 1, y: 1)
+            .onTapGesture {
+                toggleSelection(emoji)
+            }
+//            .overlay(selection.contains(emoji.id) ? deleteButton(emoji) : nil)
+            .scaleEffect(selection.contains(emoji.id) ? CGFloat(1) * gestureZoomEmoji :  CGFloat(1))
+            .gesture(dragGesture(emoji))
+            .frame(width: CGFloat(emoji.size + 10), height: CGFloat(emoji.size + 10))
+            .zIndex(2.0)
+            .contextMenu{
+                Button(role:.destructive) {
+                    document.removeEmoji(emoji, undowith: undoManager)
+                } label: {
+                    Label("Delete", systemImage: "minus.circle")
+                }
+            }
+            .position(emoji.position.in(geometry))
     }
     
     private func deleteButton(_ emoji: Emoji) -> some View {
         GeometryReader { geometry in
             Image(systemName: "minus.circle")
                 .foregroundColor(.orange)
-                .font(.system(size: 30))
-                .bold()
+                .font(.system(size: CGFloat(emoji.size / 4)))
                 .position(CGPoint(x: geometry.frame(in: .local).width + 8, y:geometry.frame(in: .local).height + 8))
                 .onTapGesture {
-                    document.removeEmoji(emoji)
+                    document.removeEmoji(emoji, undowith: undoManager)
                 }
         }
 
@@ -175,20 +191,20 @@ struct EmojiArtDocumentView: View {
                 // onChanged will update the @State as it changes, while updating shows transient UI state during the gest
                 if selection.contains(emoji.id) {
                     for emoji in document.emojis where selection.contains(emoji.id) {
-                        document.move(emoji, by: value.translation)
+                        document.move(emoji, by: value.translation, undowith: undoManager)
                     }
                     
                 } else{
-                    document.move(emoji, by: value.translation)
+                    document.move(emoji, by: value.translation, undowith: undoManager)
                 }
             }
             .onEnded { value in
                 if selection.contains(emoji.id) {
                     for emoji in document.emojis where selection.contains(emoji.id) {
-                        document.move(emoji, by: value.translation)
+                        document.move(emoji, by: value.translation, undowith: undoManager)
                     }
                 } else {
-                    document.move(emoji, by: value.translation)
+                    document.move(emoji, by: value.translation, undowith: undoManager)
                 }
             }
     }
@@ -205,13 +221,14 @@ struct EmojiArtDocumentView: View {
         for sud in sturldata {
             switch sud {
             case .url(let url):
-                document.setBackground(url)
+                document.setBackground(url, undowith: undoManager)
                 return true
             case .string(let emoji):
                 document.addEmoji(
                     emoji,
                     at: emojiPosition(at: location, in: geometry),
-                    size: paletteEmojiSize / zoom
+                    size: paletteEmojiSize / zoom,
+                    undowith: undoManager
                 )
                 return true
             default:

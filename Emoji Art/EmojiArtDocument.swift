@@ -6,12 +6,32 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
-class EmojiArtDocument: ObservableObject {
+class EmojiArtDocument: ReferenceFileDocument {
+    func snapshot(contentType: UTType) throws -> Data {
+        try emojiArt.json()
+    }
+    
+    func fileWrapper(snapshot: Data, configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: snapshot)
+    }
+    
+    static var readableContentTypes: [UTType] {
+        [.emojiart]
+    }
+    
+    required init(configuration: ReadConfiguration) throws {
+        if let data = configuration.file.regularFileContents {
+            emojiArt = try EmojiArt(json: data)
+        } else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+    }
+    
     typealias Emoji = EmojiArt.Emoji
     @Published private var emojiArt = EmojiArt() {
         didSet {
-            autosave()
             if emojiArt.background != oldValue.background {
                 Task {
                     await fetchBackgroundImage() // run the state machine
@@ -20,27 +40,7 @@ class EmojiArtDocument: ObservableObject {
         }
     }
     
-    private let autosaveURL: URL = URL.documentsDirectory.appendingPathComponent("Autosaved.emojiart")
-    
-    private func autosave() {
-        save(to: autosaveURL)
-//        print("autosaved to \(autosaveURL)")
-    }
-    
-    private func save(to url: URL) {
-        do {
-            let data = try emojiArt.json()
-            try data.write(to: url)
-        } catch let error {
-            print("EmojiArtDocument: error while saving \(error.localizedDescription)")
-        }
-    }
-    
     init() {
-        if let data = try? Data(contentsOf: autosaveURL),
-           let autosavedEmojiArt = try? EmojiArt(json: data) {
-            emojiArt = autosavedEmojiArt
-        }
     }
     
     var emojis: [Emoji] {
@@ -119,45 +119,75 @@ class EmojiArtDocument: ObservableObject {
     
     // MARK: - Intent(s)
     
-    func setBackground(_ url:URL?) {
-        emojiArt.background = url
+    private func undoablyPerform(_ action: String, with undoManager: UndoManager? = nil, doit: () -> Void) {
+        let oldEmojiArt = emojiArt
+        doit()
+        undoManager?.registerUndo(withTarget: self) { myself in
+            // adding a redo
+            myself.undoablyPerform(action, with: undoManager) {
+                myself.emojiArt = oldEmojiArt
+            }
+        }
+        undoManager?.setActionName(action)
     }
     
-    func addEmoji(_ emoji: String, at position: Emoji.Position, size: CGFloat) {
-        emojiArt.addEmoji(emoji, at: position, size: Int(size))
-    }
-    
-    func removeEmoji(_ emoji: Emoji) {
-        emojiArt.removeEmoji(emoji)
-    }
-    
-    func removeAll() {
-        emojiArt.removeAll()
-    }
-    
-    func move(_ emoji: Emoji, by offset: CGOffset) {
-        let currentPosition = emojiArt[emoji].position
-        emojiArt[emoji].position = Emoji.Position(
-            x: currentPosition.x + Int(offset.width),
-            y: currentPosition.y - Int(offset.height)
-        )
-    }
-    
-    func move(emojiId: Emoji.ID, by offset: CGOffset) {
-//        move(emojis[emojiId], by: offset)
-        if let emoji = emojiArt[emojiId] {
-            move(emoji, by: offset)
+    func setBackground(_ url:URL?, undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Set Background", with: undoManager) {
+            emojiArt.background = url
         }
     }
     
-    func resize(_ emoji: Emoji, by scale: CGFloat) {
-        let currentSize = CGFloat(emojiArt[emoji].size)
-        emojiArt[emoji].size = Int(currentSize * scale)
+    func addEmoji(_ emoji: String, at position: Emoji.Position, size: CGFloat, undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Add Emoji", with: undoManager) {
+            emojiArt.addEmoji(emoji, at: position, size: Int(size))
+        }
+        
     }
     
-    func resize(emojiId: Emoji.ID, by scale: CGFloat) {
-        if let emoji = emojiArt[emojiId] {
-            resize(emoji, by: scale)
+    func removeEmoji(_ emoji: Emoji, undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Add \(emoji.string)", with: undoManager) {
+            
+        }
+        emojiArt.removeEmoji(emoji)
+    }
+    
+    func removeAll(undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Remove All Emojis", with: undoManager) {
+            emojiArt.removeAll()
+        }
+    }
+    
+    func move(_ emoji: Emoji, by offset: CGOffset, undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Move \(emoji.string)", with: undoManager) {
+            let currentPosition = emojiArt[emoji].position
+            emojiArt[emoji].position = Emoji.Position(
+                x: currentPosition.x + Int(offset.width),
+                y: currentPosition.y - Int(offset.height)
+            )
+        }
+    }
+    
+    func move(emojiId: Emoji.ID, by offset: CGOffset, undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Move Emoji", with: undoManager) {
+            //        move(emojis[emojiId], by: offset)
+            if let emoji = emojiArt[emojiId] {
+                move(emoji, by: offset, undowith: undoManager)
+            }
+        }
+    }
+    
+    func resize(_ emoji: Emoji, by scale: CGFloat, undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Resize \(emoji.string)", with: undoManager) {
+            let currentSize = CGFloat(emojiArt[emoji].size)
+            emojiArt[emoji].size = Int(currentSize * scale)
+        }
+    }
+    
+    func resize(emojiId: Emoji.ID, by scale: CGFloat, undowith undoManager: UndoManager? = nil) {
+        undoablyPerform("Resize Emoji", with: undoManager) {
+            if let emoji = emojiArt[emojiId] {
+                resize(emoji, by: scale, undowith: undoManager)
+            }
         }
     }
 }
@@ -174,4 +204,8 @@ extension EmojiArt.Emoji.Position {
         let centerY = geometry.frame(in: .local).midY
         return CGPoint(x: centerX + CGFloat(x), y: centerY - CGFloat(y))
     }
+}
+
+extension UTType {
+    static let emojiart = UTType(exportedAs: "com.hannahfromaland.emojiart")
 }
