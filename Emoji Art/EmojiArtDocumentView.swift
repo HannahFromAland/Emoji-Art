@@ -29,6 +29,9 @@ struct EmojiArtDocumentView: View {
                 .scrollIndicators(.hidden)
         }
         .environmentObject(paletteStore)
+        .toolbar {
+            undoButton
+        }
     }
     
     private var documentBody: some View {
@@ -68,6 +71,47 @@ struct EmojiArtDocumentView: View {
             )
         }
     }
+    @State private var showUndoMenu = false
+    
+    @ViewBuilder
+    private var undoButton: some View {
+        if let undoManager {
+            Image(systemName: "arrow.uturn.backward.circle")
+                .foregroundColor(!undoManager.canRedo && !undoManager.canUndo ? .gray : .accentColor)
+                .onTapGesture {
+                    undoManager.undo()
+                }
+                .onLongPressGesture(minimumDuration: 0.5) {
+                    showUndoMenu = true
+                }
+                .popover(isPresented: $showUndoMenu) {
+                    VStack {
+                        if !undoManager.canRedo && !undoManager.canUndo {
+                            Text("Nothing to undo")
+                        } else {
+                            if undoManager.canUndo {
+                                Button("Undo " + undoManager.undoActionName) {
+                                    undoManager.undo()
+                                    showUndoMenu = false
+                                }
+                            }
+                            if undoManager.canRedo {
+                                if undoManager.canUndo {
+                                    Divider()
+                                }
+                                Button("Redo " + undoManager.redoActionName) {
+                                    undoManager.redo()
+                                    showUndoMenu = false
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: 300)
+                }
+                
+        }
+    }
     
     private func zoomToFit(_ size: CGSize?, in geometry: GeometryProxy) {
         if let size {
@@ -97,6 +141,7 @@ struct EmojiArtDocumentView: View {
     @GestureState private var gestureZoom: CGFloat = 1
     @GestureState private var gestureZoomEmoji: CGFloat = 1
     @GestureState private var gesturePan: CGOffset = .zero
+    @GestureState private var gesturePanEmoji: CGOffset = .zero
     
     private var zoomGesture: some Gesture {
         MagnifyGesture(minimumScaleDelta: 0.1)
@@ -150,6 +195,17 @@ struct EmojiArtDocumentView: View {
         }
     }
     
+    private func isDragGroup(_ emoji: Emoji) -> Bool {
+        if let currentDraggingEmoji {
+            if selection.contains(currentDraggingEmoji.id) {
+                return selection.contains(emoji.id)
+            } else {
+                return currentDraggingEmoji.id == emoji.id
+            }
+        }
+        return false
+    }
+    
     private func emojiView(_ emoji: Emoji, geometry: GeometryProxy) -> some View {
         Text(emoji.string)
             .font(emoji.font)
@@ -159,6 +215,9 @@ struct EmojiArtDocumentView: View {
             }
 //            .overlay(selection.contains(emoji.id) ? deleteButton(emoji) : nil)
             .scaleEffect(selection.contains(emoji.id) ? CGFloat(1) * gestureZoomEmoji :  CGFloat(1))
+            .offset(
+                x: isDragGroup(emoji) ? gesturePanEmoji.width : .zero,
+                y: isDragGroup(emoji) ? gesturePanEmoji.height: .zero)
             .gesture(dragGesture(emoji))
             .frame(width: CGFloat(emoji.size + 10), height: CGFloat(emoji.size + 10))
             .zIndex(2.0)
@@ -185,18 +244,15 @@ struct EmojiArtDocumentView: View {
 
     }
     
+    @State private var currentDraggingEmoji: Emoji?
+    
     private func dragGesture(_ emoji: Emoji) -> some Gesture {
         DragGesture()
-            .onChanged { value in
-                // onChanged will update the @State as it changes, while updating shows transient UI state during the gest
-                if selection.contains(emoji.id) {
-                    for emoji in document.emojis where selection.contains(emoji.id) {
-                        document.move(emoji, by: value.translation, undowith: undoManager)
-                    }
-                    
-                } else{
-                    document.move(emoji, by: value.translation, undowith: undoManager)
-                }
+            .onChanged { _ in
+                currentDraggingEmoji = emoji
+            }
+            .updating($gesturePanEmoji) { value, gesturePan, _ in
+                gesturePan  = value.translation
             }
             .onEnded { value in
                 if selection.contains(emoji.id) {
@@ -206,8 +262,21 @@ struct EmojiArtDocumentView: View {
                 } else {
                     document.move(emoji, by: value.translation, undowith: undoManager)
                 }
+                currentDraggingEmoji = nil
             }
     }
+    
+    //            .onChanged { value in
+    //                // onChanged will update the @State as it changes, while updating shows transient UI state during the gest
+    //                if selection.contains(emoji.id) {
+    //                    for emoji in document.emojis where selection.contains(emoji.id) {
+    //                        document.move(emoji, by: value.translation, undowith: undoManager)
+    //                    }
+    //
+    //                } else{
+    //                    document.move(emoji, by: value.translation, undowith: undoManager)
+    //                }
+    //            }
 
     private func toggleSelection(_ emoji: Emoji) {
         if selection.contains(emoji.id) {
